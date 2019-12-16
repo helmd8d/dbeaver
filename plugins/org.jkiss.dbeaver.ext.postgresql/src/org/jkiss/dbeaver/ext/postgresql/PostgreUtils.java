@@ -424,7 +424,7 @@ public class PostgreUtils {
                 try {
                     DBCEntityMetaData entityMetaData = ((DBCAttributeMetaData) column).getEntityMetaData();
                     if (entityMetaData != null) {
-                        DBSEntity docEntity = DBUtils.getEntityFromMetaData(session.getProgressMonitor(), session.getDataSource(), entityMetaData);
+                        DBSEntity docEntity = DBUtils.getEntityFromMetaData(session.getProgressMonitor(), session.getExecutionContext(), entityMetaData);
                         if (docEntity != null) {
                             DBSEntityAttribute attribute = docEntity.getAttribute(session.getProgressMonitor(), ((DBCAttributeMetaData) column).getName());
                             if (attribute instanceof DBSTypedObjectEx) {
@@ -737,6 +737,6 @@ public class PostgreUtils {
     }
 
     public static String getRealSchemaName(PostgreDatabase database, String name) {
-        return name.replace("$user", database.getActiveUser());
+        return name.replace("$user", database.getDefaultContext().getActiveUser());
     }
 }

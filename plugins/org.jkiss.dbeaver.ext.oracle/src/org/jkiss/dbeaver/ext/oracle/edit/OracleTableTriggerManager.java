@@ -31,6 +31,7 @@ import org.jkiss.dbeaver.model.struct.DBSObject;
 import org.jkiss.dbeaver.model.struct.cache.DBSObjectCache;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -56,18 +57,22 @@ public class OracleTableTriggerManager extends SQLTriggerManager<OracleTableTrig
     }
 
     @Override
-    protected void addObjectDeleteActions(List<DBEPersistAction> actions, ObjectDeleteCommand command, Map<String, Object> options) {
+    protected void addObjectDeleteActions(DBRProgressMonitor monitor, List<DBEPersistAction> actions, ObjectDeleteCommand command, Map<String, Object> options) {
         actions.add(
             new SQLDatabasePersistAction("Drop trigger", "DROP TRIGGER " + command.getObject().getFullyQualifiedName(DBPEvaluationContext.DDL)) //$NON-NLS-2$
         );
     }
 
-    protected void createOrReplaceTriggerQuery(List<DBEPersistAction> actions, OracleTableTrigger trigger, boolean create) {
+    protected void createOrReplaceTriggerQuery(DBRProgressMonitor monitor, List<DBEPersistAction> actions, OracleTableTrigger trigger, boolean create) {
         String source = OracleUtils.normalizeSourceName(trigger, false);
         if (source == null) {
             return;
         }
-        actions.add(new SQLDatabasePersistAction("Create trigger", "CREATE OR REPLACE " + source, true)); //$NON-NLS-2$
+        String script = source;
+        if (!script.toUpperCase(Locale.ENGLISH).trim().contains("CREATE ")) {
+            script = "CREATE OR REPLACE " + script;
+        }
+        actions.add(new SQLDatabasePersistAction("Create trigger", script, true)); //$NON-NLS-2$
         OracleUtils.addSchemaChangeActions(actions, trigger);
     }
 

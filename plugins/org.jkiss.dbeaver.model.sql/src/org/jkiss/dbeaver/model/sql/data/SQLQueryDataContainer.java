@@ -65,7 +65,7 @@ public class SQLQueryDataContainer implements DBSDataContainer, SQLQueryContaine
         // Modify query (filters + parameters)
         DBPDataSource dataSource = session.getDataSource();
         SQLQuery sqlQuery = query;
-        String queryText = sqlQuery.getText();//.trim();
+        String queryText = sqlQuery.getOriginalText();//.trim();
         if (dataFilter != null && dataFilter.hasFilters() && dataSource instanceof SQLDataSource) {
             String filteredQueryText = ((SQLDataSource) dataSource).getSQLDialect().addFiltersToQuery(
                 dataSource, queryText, dataFilter);
@@ -75,7 +75,7 @@ public class SQLQueryDataContainer implements DBSDataContainer, SQLQueryContaine
         }
 
         if (scriptContext != null) {
-            if (!scriptContext.fillQueryParameters(sqlQuery)) {
+            if (!scriptContext.fillQueryParameters(sqlQuery, CommonUtils.isBitSet(flags, DBSDataContainer.FLAG_REFRESH))) {
                 // User canceled
                 return statistics;
             }

@@ -108,7 +108,7 @@ public abstract class JDBCDataSource
     }
 
     protected void initializeRemoteInstance(@NotNull DBRProgressMonitor monitor) throws DBException {
-        this.defaultRemoteInstance = new JDBCRemoteInstance<>(monitor, this, true);
+        this.defaultRemoteInstance = new JDBCRemoteInstance(monitor, this, true);
     }
 
     protected Connection openConnection(@NotNull DBRProgressMonitor monitor, @Nullable JDBCExecutionContext context, @NotNull String purpose)
@@ -281,7 +281,7 @@ public abstract class JDBCDataSource
     }
 */
 
-    protected void initializeContextState(@NotNull DBRProgressMonitor monitor, @NotNull JDBCExecutionContext context, boolean setActiveObject) throws DBCException {
+    protected void initializeContextState(@NotNull DBRProgressMonitor monitor, @NotNull JDBCExecutionContext context, JDBCExecutionContext initFrom) throws DBException {
 
     }
 

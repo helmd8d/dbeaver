@@ -45,7 +45,7 @@ import java.util.Collections;
 /**
  * WMIDataSource
  */
-public class WMIDataSource implements DBPDataSource, DBSInstance, DBCExecutionContext, SQLDataSource, IAdaptable//, DBSObjectContainer, DBSObjectSelector
+public class WMIDataSource implements DBPDataSource, DBSInstance, DBCExecutionContext, SQLDataSource, IAdaptable
 {
     private final DBPDataSourceContainer container;
     private WMINamespace rootNamespace;
@@ -147,7 +147,7 @@ public class WMIDataSource implements DBPDataSource, DBSInstance, DBCExecutionCo
 
     @NotNull
     @Override
-    public DBCExecutionContext openIsolatedContext(@NotNull DBRProgressMonitor monitor, @NotNull String purpose) throws DBException
+    public DBCExecutionContext openIsolatedContext(@NotNull DBRProgressMonitor monitor, @NotNull String purpose, @Nullable DBCExecutionContext initFrom) throws DBException
     {
         return this;
     }

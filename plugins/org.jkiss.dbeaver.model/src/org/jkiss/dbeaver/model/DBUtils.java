@@ -298,6 +298,7 @@ public final class DBUtils {
     /**
      * Finds catalog, schema or table within specified object container
      * @param monitor progress monitor
+     * @param executionContext
      * @param rootSC container
      * @param catalogName catalog name (optional)
      * @param schemaName schema name (optional)
@@ -307,6 +308,7 @@ public final class DBUtils {
     @Nullable
     public static DBSObject getObjectByPath(
         @NotNull DBRProgressMonitor monitor,
+        @NotNull DBCExecutionContext executionContext,
         @NotNull DBSObjectContainer rootSC,
         @Nullable String catalogName,
         @Nullable String schemaName,
@@ -338,7 +340,7 @@ public final class DBUtils {
             DBSObject sc = rootSC.getChild(monitor, containerName);
             if (!(sc instanceof DBSObjectContainer)) {
                 // Not found - try to find in selected object
-                DBSObject selectedObject = getSelectedObject(rootSC, false);
+                DBSObject selectedObject = getSelectedObject(executionContext);
                 if (selectedObject instanceof DBSObjectContainer) {
                     sc = ((DBSObjectContainer) selectedObject).getChild(monitor, containerName);
                 }
@@ -357,7 +359,7 @@ public final class DBUtils {
         } else {
             // Child is not an entity. May be catalog/schema names was omitted.
             // Try to use selected object
-            DBSObject selectedObject = DBUtils.getSelectedObject(rootSC, true);
+            DBSObject selectedObject = DBUtils.getSelectedObject(executionContext);
             if (selectedObject instanceof DBSObjectContainer) {
                 return ((DBSObjectContainer) selectedObject).getChild(monitor, objectName);
             }
@@ -370,6 +372,7 @@ public final class DBUtils {
     @Nullable
     public static DBSObject findNestedObject(
         @NotNull DBRProgressMonitor monitor,
+        @NotNull DBCExecutionContext executionContext,
         @NotNull DBSObjectContainer parent,
         @NotNull List<String> names)
         throws DBException
@@ -378,13 +381,11 @@ public final class DBUtils {
             String childName = names.get(i);
             DBSObject child = parent.getChild(monitor, childName);
             if (child == null) {
-                DBSObjectSelector selector = DBUtils.getAdapter(DBSObjectSelector.class, parent);
-                if (selector != null) {
-                    DBSObjectContainer container = DBUtils.getAdapter(DBSObjectContainer.class, selector.getDefaultObject());
-                    if (container != null) {
-                        parent = container;
-                        child = parent.getChild(monitor, childName);
-                    }
+                DBCExecutionContextDefaults contextDefaults = executionContext.getContextDefaults();
+                DBSObjectContainer container = DBUtils.getSelectedObject(executionContext, DBSObjectContainer.class);
+                if (container != null) {
+                    parent = container;
+                    child = parent.getChild(monitor, childName);
                 }
             }
             if (child == null) {
@@ -394,7 +395,7 @@ public final class DBUtils {
                 return child;
             }
             if (child instanceof DBSObjectContainer) {
-                parent = DBSObjectContainer.class.cast(child);
+                parent = (DBSObjectContainer) child;
             } else {
                 break;
             }
@@ -698,7 +699,7 @@ public final class DBUtils {
             } else {
                 // No nested bindings. Try to get entity attributes
                 try {
-                    DBSEntity docEntity = getEntityFromMetaData(session.getProgressMonitor(), session.getDataSource(), attributeMeta.getEntityMetaData());
+                    DBSEntity docEntity = getEntityFromMetaData(session.getProgressMonitor(), session.getExecutionContext(), attributeMeta.getEntityMetaData());
                     if (docEntity != null) {
                         Collection<? extends DBSEntityAttribute> entityAttrs = docEntity.getAttributes(session.getProgressMonitor());
                         if (!CommonUtils.isEmpty(entityAttrs)) {
@@ -1654,96 +1655,104 @@ public final class DBUtils {
     @NotNull
     public static DBSObject getDefaultOrActiveObject(@NotNull DBSInstance object)
     {
-        DBSObject selectedObject = getActiveInstanceObject(object);
-        return selectedObject == null ? object : selectedObject;
+        DBCExecutionContext defaultContext = getDefaultContext(object, true);
+        return defaultContext == null ? null : getActiveInstanceObject(defaultContext);
     }
 
     @Nullable
-    public static DBSObject getActiveInstanceObject(@NotNull DBSInstance object)
+    public static DBSObject getActiveInstanceObject(@NotNull DBCExecutionContext executionContext)
     {
-        if (object instanceof DBSObjectContainer) {
-            return getSelectedObject(object, true);
+        if (executionContext instanceof DBSObjectContainer) {
+            return getSelectedObject(executionContext);
         } else {
-            return getSelectedObject(object.getDataSource(), true);
+            return getSelectedObject(executionContext);
         }
     }
 
     @Nullable
-    public static DBSObject getSelectedObject(@NotNull DBSObject object, boolean searchNested)
+    public static DBSObject getSelectedObject(@NotNull DBCExecutionContext context)
     {
-        DBSObjectSelector objectSelector = getAdapter(DBSObjectSelector.class, object);
-        if (objectSelector != null) {
-            DBSObject selectedObject1 = objectSelector.getDefaultObject();
-            if (searchNested && selectedObject1 != null) {
-                DBSObject nestedObject = getSelectedObject(selectedObject1, true);
-                if (nestedObject != null) {
-                    return nestedObject;
-                }
+        DBCExecutionContextDefaults contextDefaults = context.getContextDefaults();
+        if (contextDefaults != null) {
+            DBSSchema defaultSchema = contextDefaults.getDefaultSchema();
+            if (defaultSchema != null) {
+                return defaultSchema;
             }
-            return selectedObject1;
+            DBSCatalog defaultCatalog = contextDefaults.getDefaultCatalog();
+            if (defaultCatalog != null) {
+                return defaultCatalog;
+            }
+        }
+
+        return null;
+    }
+
+    @Nullable
+    public static <T> T getSelectedObject(@NotNull DBCExecutionContext context, Class<T> theClass) {
+        DBSObject selectedObject = getSelectedObject(context);
+        if (theClass.isInstance(selectedObject)) {
+            return theClass.cast(selectedObject);
         }
         return null;
     }
 
     @NotNull
-    public static DBSObject[] getSelectedObjects(DBRProgressMonitor monitor, @NotNull DBSObject object) {
-        DBSObjectSelector objectSelector = getAdapter(DBSObjectSelector.class, object);
-        if (objectSelector != null) {
-            if (objectSelector instanceof DBSObjectContainer) {
-                // Read children - just in case
-                try {
-                    ((DBSObjectContainer) objectSelector).getChildren(monitor);
-                } catch (DBException e) {
-                    log.debug("Error reading children objects of object selector", e);
-                }
-            }
-            DBSObject selectedObject1 = objectSelector.getDefaultObject();
-            if (selectedObject1 != null) {
-                DBSObject nestedObject = null;
-                DBSObjectSelector objectSelector2 = getAdapter(DBSObjectSelector.class, selectedObject1);
-                if (objectSelector2 != null) {
-                    if (objectSelector2 instanceof DBSObjectContainer) {
-                        // Read children - just in case
-                        try {
-                            ((DBSObjectContainer) objectSelector2).getChildren(monitor);
-                        } catch (DBException e) {
-                            log.debug("Error reading children objects of nested object selector", e);
-                        }
-                    }
-                    nestedObject = objectSelector2.getDefaultObject();
-                }
-                if (nestedObject != null) {
-                    return new DBSObject[] { selectedObject1, nestedObject };
-                } else {
-                    return new DBSObject[] { selectedObject1 };
-                }
+    public static DBSObject[] getSelectedObjects(DBRProgressMonitor monitor, @NotNull DBCExecutionContext context) {
+        DBCExecutionContextDefaults contextDefaults = context.getContextDefaults();
+        if (contextDefaults != null) {
+            DBSCatalog defaultCatalog = contextDefaults.getDefaultCatalog();
+            DBSSchema defaultSchema = contextDefaults.getDefaultSchema();
+            if (defaultCatalog != null && defaultSchema != null) {
+                return new DBSObject[] { defaultCatalog, defaultSchema };
+            } else if (defaultCatalog != null) {
+                return new DBSObject[] { defaultCatalog };
+            } else if (defaultSchema != null) {
+                return new DBSObject[] { defaultSchema };
             }
         }
         return new DBSObject[0];
     }
 
-    public static DBSObjectContainer getChangeableObjectContainer(DBSObjectContainer root) {
-        DBSObjectContainer schemaContainer = root;
-        if (root instanceof DBSObjectSelector) {
-            DBSObject defaultObject = ((DBSObjectSelector) root).getDefaultObject();
-            if (defaultObject instanceof DBSCatalog) {
-                try {
-                    Class<? extends DBSObject> childType = ((DBSCatalog) defaultObject).getChildType(new VoidProgressMonitor());
-                    if (childType != null && DBSObjectContainer.class.isAssignableFrom(childType)) {
-                        if (defaultObject instanceof DBSObjectSelector) {
-                            if (!((DBSObjectSelector) defaultObject).supportsDefaultChange()) {
-                                // Schema can't be changed - return root
-                                return root;
-                            }
-                        }
-                        schemaContainer = (DBSObjectContainer) defaultObject;
-                    }
-                } catch (DBException e) {
-                    log.debug(e);
-                }
+    public static void refreshContextDefaultsAndReflect(DBRProgressMonitor monitor, DBCExecutionContextDefaults contextDefaults) {
+        try {
+            DBSCatalog defaultCatalog = contextDefaults.getDefaultCatalog();
+            DBSSchema defaultSchema = contextDefaults.getDefaultSchema();
+            if (contextDefaults.refreshDefaults(monitor)) {
+                fireObjectSelectionChange(defaultCatalog, contextDefaults.getDefaultCatalog());
+                fireObjectSelectionChange(defaultSchema, contextDefaults.getDefaultSchema());
+            }
+        } catch (Exception e) {
+            log.debug(e);
+        }
+    }
+
+    public static void fireObjectSelectionChange(DBSObject oldDefaultObject, DBSObject newDefaultObject) {
+        if (oldDefaultObject != newDefaultObject) {
+            if (oldDefaultObject != null) {
+                DBUtils.fireObjectSelect(oldDefaultObject, false);
+            }
+            if (newDefaultObject != null) {
+                DBUtils.fireObjectSelect(newDefaultObject, true);
             }
         }
-        return schemaContainer;
+    }
+
+    public static DBSObjectContainer getChangeableObjectContainer(DBPDataSource dataSource, DBSObjectContainer root) {
+        DBCExecutionContext executionContext = DBUtils.getDefaultContext(dataSource, true);
+        DBCExecutionContextDefaults contextDefaults = executionContext.getContextDefaults();
+        if (contextDefaults == null) {
+            return null;
+        }
+        if (contextDefaults.supportsCatalogChange()) {
+            return root;
+        }
+        if (contextDefaults.supportsSchemaChange()) {
+            DBSCatalog defaultCatalog = contextDefaults.getDefaultCatalog();
+            if (defaultCatalog != null) {
+                return defaultCatalog;
+            }
+        }
+        return null;
     }
 
     public static boolean isHiddenObject(Object object) {
@@ -1931,12 +1940,12 @@ public final class DBUtils {
         }
     }
 
-    public static DBSEntity getEntityFromMetaData(DBRProgressMonitor monitor, DBPDataSource dataSource, DBCEntityMetaData entityMeta) throws DBException {
-        final DBSObjectContainer objectContainer = getAdapter(DBSObjectContainer.class, dataSource);
+    public static DBSEntity getEntityFromMetaData(DBRProgressMonitor monitor, DBCExecutionContext executionContext, DBCEntityMetaData entityMeta) throws DBException {
+        final DBSObjectContainer objectContainer = getAdapter(DBSObjectContainer.class, executionContext.getDataSource());
         if (objectContainer != null) {
-            DBSEntity entity = getEntityFromMetaData(monitor, objectContainer, entityMeta, false);
+            DBSEntity entity = getEntityFromMetaData(monitor, executionContext, objectContainer, entityMeta, false);
             if (entity == null) {
-                entity = getEntityFromMetaData(monitor, objectContainer, entityMeta, true);
+                entity = getEntityFromMetaData(monitor, executionContext, objectContainer, entityMeta, true);
             }
             return entity;
         } else {
@@ -1944,7 +1953,7 @@ public final class DBUtils {
         }
     }
 
-    public static DBSEntity getEntityFromMetaData(DBRProgressMonitor monitor, DBSObjectContainer objectContainer, DBCEntityMetaData entityMeta, boolean transformName) throws DBException {
+    public static DBSEntity getEntityFromMetaData(DBRProgressMonitor monitor, DBCExecutionContext executionContext, DBSObjectContainer objectContainer, DBCEntityMetaData entityMeta, boolean transformName) throws DBException {
         final DBPDataSource dataSource = objectContainer.getDataSource();
         String catalogName = entityMeta.getCatalogName();
         String schemaName = entityMeta.getSchemaName();
@@ -1954,7 +1963,7 @@ public final class DBUtils {
             schemaName = DBObjectNameCaseTransformer.transformName(dataSource, schemaName);
             entityName = DBObjectNameCaseTransformer.transformName(dataSource, entityName);
         }
-        DBSObject entityObject = getObjectByPath(monitor, objectContainer, catalogName, schemaName, entityName);
+        DBSObject entityObject = getObjectByPath(monitor, executionContext, objectContainer, catalogName, schemaName, entityName);
         if (entityObject instanceof DBSAlias && !(entityObject instanceof DBSEntity)) {
             entityObject = ((DBSAlias) entityObject).getTargetObject(monitor);
         }

@@ -56,7 +56,6 @@ public class JDBCExecutionContext extends AbstractExecutionContext<JDBCDataSourc
     private volatile Connection connection;
     private volatile Boolean autoCommit;
     private volatile Integer transactionIsolationLevel;
-    private DBCExecutionContextDefaults defaults;
 
     public JDBCExecutionContext(@NotNull JDBCRemoteInstance instance, String purpose) {
         super(instance.getDataSource(), purpose);
@@ -68,16 +67,20 @@ public class JDBCExecutionContext extends AbstractExecutionContext<JDBCDataSourc
         return instance;
     }
 
+    protected void setOwnerInstance(@NotNull JDBCRemoteInstance instance) {
+        this.instance = instance;
+    }
+
     @NotNull
     private Connection getConnection() {
         return connection;
     }
 
     public void connect(DBRProgressMonitor monitor) throws DBCException {
-        connect(monitor, null, null, false, true);
+        connect(monitor, null, null, null, true);
     }
 
-    void connect(@NotNull DBRProgressMonitor monitor, Boolean autoCommit, @Nullable Integer txnLevel, boolean forceActiveObject, boolean addContext) throws DBCException {
+    protected void connect(@NotNull DBRProgressMonitor monitor, Boolean autoCommit, @Nullable Integer txnLevel, JDBCExecutionContext initFrom, boolean addContext) throws DBCException {
         if (connection != null && addContext) {
             log.error("Reopening not-closed connection");
             close();
@@ -132,9 +135,11 @@ public class JDBCExecutionContext extends AbstractExecutionContext<JDBCDataSourc
 
             try {
                 // Copy context state
-                this.dataSource.initializeContextState(monitor, this, forceActiveObject && !connectionReadOnly);
+                this.dataSource.initializeContextState(monitor, this, initFrom);
             } catch (DBCException e) {
                 log.error("Error while initializing context state", e);
+            } catch (DBException e) {
+                e.printStackTrace();
             }
 
             try {
@@ -156,6 +161,19 @@ public class JDBCExecutionContext extends AbstractExecutionContext<JDBCDataSourc
         } finally {
             DBExecUtils.finishContextInitiation(dataSource.getContainer());
         }
+    }
+
+    protected void disconnect() {
+        // [JDBC] Need sync here because real connection close could take some time
+        // while UI may invoke callbacks to operate with connection
+        synchronized (this) {
+            if (this.connection != null) {
+                this.dataSource.closeConnection(connection, purpose);
+            }
+            this.connection = null;
+        }
+        // Notify QM
+        super.closeContext();
     }
 
     @NotNull
@@ -211,7 +229,7 @@ public class JDBCExecutionContext extends AbstractExecutionContext<JDBCDataSourc
             if (closeOnFailure) {
                 closeContext(false);
             }
-            connect(monitor, prevAutocommit, txnLevel, true, false);
+            connect(monitor, prevAutocommit, txnLevel, this, false);
 
             return InvalidateResult.RECONNECTED;
         }
@@ -224,15 +242,7 @@ public class JDBCExecutionContext extends AbstractExecutionContext<JDBCDataSourc
     }
 
     private void closeContext(boolean removeContext) {
-        // [JDBC] Need sync here because real connection close could take some time
-        // while UI may invoke callbacks to operate with connection
-        synchronized (this) {
-            if (this.connection != null) {
-                this.dataSource.closeConnection(connection, purpose);
-            }
-            this.connection = null;
-            super.closeContext();
-        }
+        disconnect();
 
         if (removeContext) {
             // Remove self from context list
@@ -400,7 +410,7 @@ public class JDBCExecutionContext extends AbstractExecutionContext<JDBCDataSourc
 
     public void reconnect(DBRProgressMonitor monitor) throws DBCException {
         close();
-        connect(monitor, null, null, false, true);
+        connect(monitor, null, null, this, true);
     }
 
     @Override

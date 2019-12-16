@@ -24,6 +24,7 @@ import org.jkiss.dbeaver.model.DBPDataSource;
 import org.jkiss.dbeaver.model.DBUtils;
 import org.jkiss.dbeaver.model.edit.DBECommandContext;
 import org.jkiss.dbeaver.model.edit.DBEPersistAction;
+import org.jkiss.dbeaver.model.exec.DBCFeatureNotSupportedException;
 import org.jkiss.dbeaver.model.impl.edit.SQLDatabasePersistAction;
 import org.jkiss.dbeaver.model.impl.sql.edit.SQLObjectEditor;
 import org.jkiss.dbeaver.model.runtime.DBRProgressMonitor;
@@ -52,11 +53,12 @@ public class ExasolSecurityPolicyManager
     }
     
     @Override
-    protected ExasolSecurityPolicy createDatabaseObject(DBRProgressMonitor monitor,
-                                                        DBECommandContext context, Object container, Object copyFrom, Map<String, Object> options)
-            throws DBException
+    protected ExasolSecurityPolicy createDatabaseObject(
+        DBRProgressMonitor monitor,
+        DBECommandContext context, Object container, Object copyFrom, Map<String, Object> options)
+        throws DBException
     {
-    	throw new DBException("Not Supported");
+        throw new DBCFeatureNotSupportedException();
     }
     
     
@@ -74,7 +76,7 @@ public class ExasolSecurityPolicyManager
     }
     
     @Override
-    protected void addObjectDeleteActions(List<DBEPersistAction> actions,
+    protected void addObjectDeleteActions(DBRProgressMonitor monitor, List<DBEPersistAction> actions,
                                           ObjectDeleteCommand command, Map<String, Object> options)
     {
         final ExasolSecurityPolicy con = command.getObject();

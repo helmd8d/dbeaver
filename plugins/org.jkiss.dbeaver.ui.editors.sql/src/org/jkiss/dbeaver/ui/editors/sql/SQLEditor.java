@@ -80,7 +80,6 @@ import org.jkiss.dbeaver.model.sql.data.SQLQueryDataContainer;
 import org.jkiss.dbeaver.model.struct.DBSDataContainer;
 import org.jkiss.dbeaver.model.struct.DBSInstance;
 import org.jkiss.dbeaver.model.struct.DBSObject;
-import org.jkiss.dbeaver.model.struct.DBSObjectSelector;
 import org.jkiss.dbeaver.runtime.DBWorkbench;
 import org.jkiss.dbeaver.runtime.sql.SQLResultsConsumer;
 import org.jkiss.dbeaver.runtime.ui.UIServiceConnections;
@@ -113,12 +112,11 @@ import org.jkiss.dbeaver.utils.PrefUtils;
 import org.jkiss.dbeaver.utils.RuntimeUtils;
 import org.jkiss.utils.ArrayUtils;
 import org.jkiss.utils.CommonUtils;
-import org.jkiss.utils.IOUtils;
 
 import java.io.*;
 import java.net.URI;
-import java.util.*;
 import java.util.List;
+import java.util.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -371,11 +369,7 @@ public class SQLEditor extends SQLEditorBase implements
             final DBPDataSource dataSource = dataSourceContainer.getDataSource();
             if (dataSource == null) {
                 releaseExecutionContext();
-            } else if (curDataSource != dataSource ||
-                (curDataSource.getContainer().getPreferenceStore().getBoolean(SQLPreferenceConstants.EDITOR_SEPARATE_CONNECTION) &&
-                executionContext != null &&
-                curDataSource.getDefaultInstance() != executionContext.getOwnerInstance()))
-            {
+            } else if (curDataSource != dataSource) {
                 // Datasource was changed or instance was changed (PG)
                 releaseExecutionContext();
                 curDataSource = dataSource;
@@ -564,7 +558,7 @@ public class SQLEditor extends SQLEditorBase implements
             try {
                 String title = "SQLEditor <" + getEditorInput().getName() + ">";
                 monitor.subTask("Open context " + title);
-                executionContext = instance.openIsolatedContext(monitor, title);
+                executionContext = instance.openIsolatedContext(monitor, title, instance.getDefaultContext(monitor, false));
             } catch (DBException e) {
                 error = e;
                 return Status.OK_STATUS;
@@ -1949,7 +1943,7 @@ public class SQLEditor extends SQLEditorBase implements
     }
 
     public boolean transformQueryWithParameters(SQLQuery query) {
-        return createScriptContext().fillQueryParameters(query);
+        return createScriptContext().fillQueryParameters(query, false);
     }
 
     private boolean checkSession(DBRProgressListener onFinish)
@@ -2510,7 +2504,7 @@ public class SQLEditor extends SQLEditorBase implements
                             }
                         } else {
                             SQLQuery query = (SQLQuery) element;
-                            scriptContext.fillQueryParameters(query);
+                            scriptContext.fillQueryParameters(query, false);
 
                             SQLQueryDataContainer dataContainer = new SQLQueryDataContainer(SQLEditor.this, query, scriptContext, log);
                             producers.add(new DatabaseTransferProducer(dataContainer, null));
@@ -2844,6 +2838,7 @@ public class SQLEditor extends SQLEditorBase implements
                 job.setResultSetLimit(firstRow, maxRows);
                 job.setDataFilter(dataFilter);
                 job.setFetchSize(fetchSize);
+                job.setFetchFlags(flags);
 
                 job.extractData(session, this.query, resultCounts > 1 ? 0 : resultSetNumber);
 
@@ -3295,19 +3290,14 @@ public class SQLEditor extends SQLEditorBase implements
     private void runPostExecuteActions(@Nullable SQLQueryResult result) {
         final DBCExecutionContext executionContext = getExecutionContext();
         if (executionContext != null) {
-            final DBPDataSource dataSource = executionContext.getDataSource();
             // Refresh active object
             if (result == null || !result.hasError() && getActivePreferenceStore().getBoolean(SQLPreferenceConstants.REFRESH_DEFAULTS_AFTER_EXECUTE)) {
-                final DBSObjectSelector objectSelector = DBUtils.getAdapter(DBSObjectSelector.class, dataSource);
-                if (objectSelector != null) {
+                DBCExecutionContextDefaults contextDefaults = executionContext.getContextDefaults();
+                if (contextDefaults != null) {
                     new AbstractJob("Refresh default object") {
                         @Override
                         protected IStatus run(DBRProgressMonitor monitor) {
-                            try (DBCSession session = executionContext.openSession(monitor, DBCExecutionPurpose.UTIL, "Refresh default object")) {
-                                objectSelector.refreshDefaultObject(session);
-                            } catch (Exception e) {
-                                log.error(e);
-                            }
+                            DBUtils.refreshContextDefaultsAndReflect(monitor, contextDefaults);
                             return Status.OK_STATUS;
                         }
                     }.schedule();

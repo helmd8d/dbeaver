@@ -37,12 +37,10 @@ public class PostgreKrb5HandlerImpl implements DBWNetworkHandler, DBWConfigProvi
 
     @Override
     public DBPConnectionConfiguration initializeHandler(DBRProgressMonitor monitor, DBPPlatform platform, DBWHandlerConfiguration configuration, DBPConnectionConfiguration connectionInfo) throws DBException, IOException {
-        log.info("INITIALIZE HANDLER......");
         return null;
     }
 
     @Override
     public void invalidateHandler(DBRProgressMonitor monitor, DBPDataSource dataSource) throws DBException, IOException {
-        log.info("DEBUG HANDLER......");
     }
 }

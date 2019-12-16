@@ -17,6 +17,7 @@
 package org.jkiss.dbeaver.ext.postgresql.model;
 
 import org.eclipse.core.runtime.IAdaptable;
+import org.eclipse.emf.common.util.CommonUtil;
 import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
@@ -364,6 +365,16 @@ public class PostgreDataSource extends JDBCDataSource implements DBSObjectSelect
                 conConfig.setDatabaseName(instance.getName());
                 conConfig.setUrl(getContainer().getDriver().getDataSourceProvider().getConnectionURL(getContainer().getDriver(), conConfig));
 
+//                if (CommonUtils.toBoolean(conConfig.getProperty("KERBEROS"))) {
+//
+//                }
+//        if (CommonUtils.toBoolean(connectionInfo.getProperty(PostgreConstants.PROP_USE_SSL))) {
+//            url.append("?ssl=true");
+//            if (CommonUtils.toBoolean(connectionInfo.getProperty(PostgreConstants.PROP_SSL_NON_VALIDATING))) {
+//                url.append("&sslfactory=org.postgresql.ssl.NonValidatingFactory");
+//            }
+//        }
+
                 pgConnection = super.openConnection(monitor, context, purpose);
             }
             finally {
@@ -385,6 +396,14 @@ public class PostgreDataSource extends JDBCDataSource implements DBSObjectSelect
         }
 
         return pgConnection;
+    }
+
+    private void setKerberosSystemProperties(DBPConnectionConfiguration configuration) {
+
+    }
+
+    private String createJaasFile(DBPConnectionConfiguration configuration) {
+        return null;
     }
 
     @Override

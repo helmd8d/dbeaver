@@ -14,29 +14,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.jkiss.dbeaver.runtime.sql;
+package org.jkiss.dbeaver.model.impl.jdbc;
 
-import org.eclipse.jface.text.rules.IRule;
-import org.jkiss.code.NotNull;
-import org.jkiss.code.Nullable;
-import org.jkiss.dbeaver.model.DBPDataSourceContainer;
+import org.jkiss.dbeaver.model.connection.DBPConnectionConfiguration;
 
-import java.util.List;
+import java.sql.Connection;
+import java.util.Properties;
 
 /**
- * SQL parser rules provider.
- * It is an extension for SQL dialect implementors.
+ * JDBCConnectionConfigurer
  */
-public interface SQLRuleProvider {
+public interface JDBCConnectionConfigurer {
 
-    enum RulePosition {
-        PARTITION,
-        INITIAL,
-        CONTROL,
-        QUOTES,
-        KEYWORDS
-    }
+    void beforeConnection(DBPConnectionConfiguration connectionInfo, Properties connectProps);
 
-    void extendRules(@Nullable DBPDataSourceContainer dataSource, @NotNull List<IRule> rules, @NotNull RulePosition position);
+    void afterConnection(DBPConnectionConfiguration connectionInfo, Properties connectProps, Connection connection, Throwable error);
 
 }

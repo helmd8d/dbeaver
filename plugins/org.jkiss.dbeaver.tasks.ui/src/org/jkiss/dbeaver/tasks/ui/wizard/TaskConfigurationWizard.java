@@ -121,6 +121,10 @@ public abstract class TaskConfigurationWizard extends BaseWizard implements IWor
     @Override
     public void addPages() {
         super.addPages();
+        addTaskConfigPages();
+    }
+
+    protected void addTaskConfigPages() {
         // If we are in task edit mode then add special first page.
         // Do not add it if this is an ew task wizard (because this page is added separately)
         if (isCurrentTaskSaved()) {
@@ -227,7 +231,7 @@ public abstract class TaskConfigurationWizard extends BaseWizard implements IWor
     }
 
 
-    public void createTaskSaveButtons(Composite parent, int hSpan) {
+    public void createTaskSaveButtons(Composite parent, boolean horizontal, int hSpan) {
         Composite panel = new Composite(parent, SWT.NONE);
         if (parent.getLayout() instanceof GridLayout) {
             GridData gd = new GridData(GridData.FILL_HORIZONTAL);
@@ -235,7 +239,7 @@ public abstract class TaskConfigurationWizard extends BaseWizard implements IWor
             panel.setLayoutData(gd);
             //((GridLayout) parent.getLayout()).numColumns++;
         }
-        panel.setLayout(new GridLayout(3, false));
+        panel.setLayout(new GridLayout(horizontal ? 2 : 1, false));
         saveAsTaskButton = UIUtils.createDialogButton(panel, isTaskEditor() ? "Update configuration in task" : "Save configuration as task", new SelectionAdapter() {
             @Override
             public void widgetSelected(SelectionEvent e) {

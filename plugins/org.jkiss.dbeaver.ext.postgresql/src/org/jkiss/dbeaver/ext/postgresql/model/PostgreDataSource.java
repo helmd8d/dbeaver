@@ -289,7 +289,6 @@ public class PostgreDataSource extends JDBCDataSource implements DBSInstanceCont
         final DBPConnectionConfiguration conConfig = getContainer().getActualConnectionConfiguration();
 
         JDBCRemoteInstance instance = context == null ? null : context.getOwnerInstance();
-
         Connection pgConnection;
         if (instance != null) {
             log.debug("Initiate connection to " + getServerType().getServerTypeName() + " database [" + instance.getName() + "@" + conConfig.getHostName() + "] for " + purpose);

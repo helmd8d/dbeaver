@@ -17,7 +17,6 @@
 package org.jkiss.dbeaver.ext.postgresql.model;
 
 import org.eclipse.core.runtime.IAdaptable;
-import org.eclipse.emf.common.util.CommonUtil;
 import org.jkiss.code.NotNull;
 import org.jkiss.code.Nullable;
 import org.jkiss.dbeaver.DBException;
@@ -290,6 +289,7 @@ public class PostgreDataSource extends JDBCDataSource implements DBSInstanceCont
         final DBPConnectionConfiguration conConfig = getContainer().getActualConnectionConfiguration();
 
         JDBCRemoteInstance instance = context == null ? null : context.getOwnerInstance();
+
         Connection pgConnection;
         if (instance != null) {
             log.debug("Initiate connection to " + getServerType().getServerTypeName() + " database [" + instance.getName() + "@" + conConfig.getHostName() + "] for " + purpose);
@@ -304,16 +304,6 @@ public class PostgreDataSource extends JDBCDataSource implements DBSInstanceCont
                 // Patch URL with new database name
                 conConfig.setDatabaseName(instance.getName());
                 conConfig.setUrl(getContainer().getDriver().getDataSourceProvider().getConnectionURL(getContainer().getDriver(), conConfig));
-
-//                if (CommonUtils.toBoolean(conConfig.getProperty("KERBEROS"))) {
-//
-//                }
-//        if (CommonUtils.toBoolean(connectionInfo.getProperty(PostgreConstants.PROP_USE_SSL))) {
-//            url.append("?ssl=true");
-//            if (CommonUtils.toBoolean(connectionInfo.getProperty(PostgreConstants.PROP_SSL_NON_VALIDATING))) {
-//                url.append("&sslfactory=org.postgresql.ssl.NonValidatingFactory");
-//            }
-//        }
 
                 pgConnection = super.openConnection(monitor, context, purpose);
             }
@@ -336,14 +326,6 @@ public class PostgreDataSource extends JDBCDataSource implements DBSInstanceCont
         }
 
         return pgConnection;
-    }
-
-    private void setKerberosSystemProperties(DBPConnectionConfiguration configuration) {
-
-    }
-
-    private String createJaasFile(DBPConnectionConfiguration configuration) {
-        return null;
     }
 
     @Override

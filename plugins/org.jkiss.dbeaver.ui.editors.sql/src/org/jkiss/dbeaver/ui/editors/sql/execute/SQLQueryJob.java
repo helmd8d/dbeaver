@@ -605,7 +605,8 @@ public class SQLQueryJob extends DataSourceJob
                 fakeResultSet.addColumn("Updated Rows", DBPDataKind.NUMERIC);
                 fakeResultSet.addColumn("Query", DBPDataKind.STRING);
                 fakeResultSet.addColumn("Finish time", DBPDataKind.DATETIME);
-                fakeResultSet.addRow(updateCount, query.getText(), new Date());
+            	fakeResultSet.addColumn("Total time (ms)", DBPDataKind.NUMERIC);
+                fakeResultSet.addRow(updateCount, query.getText(), new Date(), statistics.getTotalTime());
             } else {
                 fakeResultSet.addColumn("Result", DBPDataKind.NUMERIC);
             }

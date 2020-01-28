@@ -597,7 +597,7 @@ public class SQLQueryJob extends DataSourceJob
                 statistics.getFetchTime(),
                 statistics.getTotalTime(),
                 new Date());
-            executeResult.setResultSetName("Statistics");
+            executeResult.setResultSetName("xStatistics");
         } else {
             // Single statement
             long updateCount = statistics.getRowsUpdated();
@@ -610,7 +610,7 @@ public class SQLQueryJob extends DataSourceJob
             } else {
                 fakeResultSet.addColumn("Result", DBPDataKind.NUMERIC);
             }
-            executeResult.setResultSetName("Result");
+            executeResult.setResultSetName("xResult");
         }
         fetchQueryData(session, fakeResultSet, resultInfo, executeResult, dataReceiver, false);
     }
